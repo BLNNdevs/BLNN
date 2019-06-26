@@ -1,14 +1,27 @@
 #' @title Calculate predicted values and errors for a BLNN object
-#' @name BLNN_Predict
-#' @description Allows the user to calculate predicted values from input data with the
-#' option of providing network and fitted errors if known y values are supplied.
+#' @name BLNN_Update
+#' @description Allows the user to update the network object after examining the samples.
+#' If the samples drawn passed the diagnostic checks then we need to update the network object with the average value of the accetped samples after warmup.
 #' @param Network A BLNN network object
-#' @param x A set of input data
-#' @param y A set of target response values. Default is \code{NULL}
-#' @return A vector or matrix of predicted responses. If y is given, returns a list containing
-#' \describe{
-#' \item{Errors}{Calculated network error}
-#' \item{Difference}{A vector of differences y-predicted}
-#' \item{Fitted_Values}{A vector or matrix of predicted responses}
-#' }
+#' @param fit The fitted object returned by \code{\link{BLNN_train}}.
+#' @param index The starting index used to compute the average estimated value of the newtork weights. The default is warmup+1
+#' @return The Network object with trained weights.
+#'
 #' @export
+
+BLNN_Update <- function(Net, fit, index=NULL){
+  sam <- fit$samples
+  chains <- dim(sam)[2]
+  ite <- dim(sam)[1]
+  l <- dim(sam)[3]
+  if(is.null(index)) index = fit$warmup+1
+  if(chains == 1){
+    wts.up <- colMeans(sam[index:ite,,])[-l]
+  }else {
+    wts.up <- colMeans(colMeans(sam[index:ite,,]))[-l]
+  }
+
+  Net.up <- .UpNetWts(wts.up,NET)
+  return(Net.up)
+
+}
