@@ -1,0 +1,20 @@
+Package: BLNN
+Type: Package
+Title: Bayesian Learning for Artificial Neural Networks
+Version: 1.0
+Date: 6/12/19
+Authors@R: 
+    person("Taysseer", "Sharaf", email="tsharaf@umich.edu",role = c("aut", "cre"))
+    person("Theren", "Williams", email="therenw2@illinois.edu",role = c("aut", "cre"))
+Maintainers: Tayseer Sharaf <tsharaf@umich.edu>, Theren Williams <therenw2@illinois.edu>
+Description: Software to build and train two layer feed-forward artificial neural networks
+    using bayesian methods for weight training. The software impliments the No-U-Turn (NUTS) sampler
+    and Hamiltonian Monte Carlo with dual averaging. Estimation of hyperparameter values can be done
+    through the evidence procedure. This package can be used for multiple statistical models including,
+    linear/multiple regression, logistic regression, classification, survival analysis, among others.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.1
+Suggests: 
+    testthat
