@@ -17,3 +17,14 @@ knitr::opts_chunk$set(
 ```{r setup}
 library(BLNN)
 ```
+
+BLNN allows users to build, train, and make predictions using Bayesian neural networks. The package is built around four core functions all with 'BLNN_' at the begining. Those functions are
+
+1) Build: Used to create the structure or shell of your network. Contains all the relevent information that needs to be passed along through the training process such as the desired network shape and what activation and output functions are to be used.
+
+2) Train: This function takes the desired BLNN object, data, target values and training method to optimize the weights of the network. Returns the samples collected using bayesian methods. If non-Bayesian methods are used then a trained BLNN object is returned 
+
+3) UpdateNetwork: Allows the user to update their existing BLNN object with weights gathered from trained samples.
+
+4) Predict: Takes a trained BLNN object along with data and calculates predicted values. 
+
