@@ -17,11 +17,14 @@ BLNN_Predict<-function(Network, x, y=NULL){
 
   forwarded<-ffwd(Network, x)
 
-  if(is.null(y)==TRUE){
+
+  if (Network$outF=="softmax"){
+    return(max.col(forwarded$trainout))
+  } else{ if(is.null(y)==TRUE){
     return(forwarded$trainout)
   } else{
     Err<-.NetErr(y, Network, x, sep = TRUE)
     diff<-(y-forwarded$trainout)
     return(list(Errors=Err, Difference=diff, Fitted_Values=forwarded$trainout))
   }
-}
+}}

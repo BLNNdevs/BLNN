@@ -50,6 +50,8 @@ The network object, defined as a list containing
 
 \item{costF}{Cost Function.}
 
+\item{outF}{Output Function.}
+
 \item{bias}{Bias terms.}
 
 \item{scale.error}{Error hyperparameter.}
