@@ -9,7 +9,7 @@
 #'
 #' @export
 
-BLNN_Update <- function(Net, fit, index=NULL){
+BLNN_Update <- function(NET, fit, index=NULL){
   sam <- fit$samples
   chains <- dim(sam)[2]
   ite <- dim(sam)[1]

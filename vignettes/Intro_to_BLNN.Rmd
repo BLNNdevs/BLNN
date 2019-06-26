@@ -24,7 +24,12 @@ BLNN allows users to build, train, and make predictions using Bayesian neural ne
 
 2) Train: This function takes the desired BLNN object, data, target values and training method to optimize the weights of the network. Returns the samples collected using bayesian methods. If non-Bayesian methods are used then a trained BLNN object is returned 
 
-3) UpdateNetwork: Allows the user to update their existing BLNN object with weights gathered from trained samples.
+3) Update: Allows the user to update their existing BLNN object with weights gathered from trained samples.
 
 4) Predict: Takes a trained BLNN object along with data and calculates predicted values. 
+
+As with other Bayesian methods, propper diagnostics are required to determine if samples are adaquate in understanding your parameter space. To get the most out of diagnostics of the NUTS algorithm and the shinyBLNN function, it is necessary that users install shinystan though it is not necessary to have the library loaded. 
+```{r}
+install.packages("shinystan")
+```
 
