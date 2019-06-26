@@ -8,7 +8,7 @@ BLNN_Train(NET, x, y, iter = 2000, init = NULL, chains = 1,
   seeds = NULL, warmup = floor(iter/2), thin = 1, parallel = FALSE,
   cores = NULL, algorithm = c("NUTS", "HMC", "BFGS"),
   evidence = FALSE, ev.x = NULL, ev.y = NULL, ev.iter = 1,
-  control = NULL, display = 0, ...)
+  control = NULL, display = 0, path = getwd(), ...)
 }
 \arguments{
 \item{NET}{the BLNN object which is created using \code{\link{BLNN_Build}}.}
