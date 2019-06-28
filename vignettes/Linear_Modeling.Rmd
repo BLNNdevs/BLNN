@@ -36,7 +36,9 @@ LinearNet<-BLNN_Build(ncov=2, nout=1, hlayer_size = 3,
 Next we look to organize our data into our covariates and our target values. In most cases it is recomended to scale your data as to avoid network weights that are incredibly large where possible.
 ```{r}
 data<-cbind(mtcars$wt, mtcars$disp)
+data<-scale(data)
 targ<-data.matrix(mtcars$mpg)
+targ<-scale(targ)
 ```
 
 Our next step requires us to train our network. We will be using the popular nnet package to act as our baseline and using our four Bayesian methods to explore their use. 
@@ -53,9 +55,9 @@ LinearHMC <- BLNN_Train(NET = LinearNet,
                           chains = 1,
                           algorithm = "HMC",
                           display = 1, control = list(adapt_delta = 0.7,
-                                                      Lambda = 0.5,
+                                                      Lambda = 0.05,
                                                       stepsize=.5,
-                                                      gamma=2)
+                                                      gamma=5)
                         )
 ```
 
