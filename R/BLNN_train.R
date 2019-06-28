@@ -171,7 +171,7 @@ BLNN_Train <-
     mcmc.out <- list()
     #Check for parallel
     if (!parallel) {
-      cat("OPPPS")
+
       if (algorithm == "HMC") {
         mcmc.out <-
           lapply(1:chains, function(i)
@@ -260,7 +260,7 @@ BLNN_Train <-
     }
     samples <- array(NA, dim=c(N, chains, 1+length(par.names)),
                      dimnames=list(NULL, NULL, c(par.names,'Er__')))
-    cat("IAM HERE BEFORE FILLING SAMPLES")
+
     for(i in 1:chains)
       samples[,i,] <- mcmc.out[[i]]$par[1:N,]
     ## Before transforming, get estimated covariance to be used as metrix
@@ -336,7 +336,7 @@ BLNN_Train <-
            control = control, display=0, path = getwd(),...) {
     #Initialize arguments
     #
-    cat("HEY I AM IN HMC")
+
     if (!is.null(seed))
       set.seed(seed)
     control <- .update_control(control)
@@ -407,7 +407,7 @@ BLNN_Train <-
 
     eps <- epsvec[1] <- epsbar[1] <-
       .find.epsilon(theta = init, fn, gr, eps, verbose = FALSE, M_inv)
-    cat("pick epsilon", eps , "\n")
+    if(display>= 0) cat("Initial Step size :", eps , "\n")
     mu <- log(4.005 * eps)
     Hbar[1] <- 0
     gamma <- gamma
@@ -421,6 +421,7 @@ BLNN_Train <-
     message(paste('Starting HMC', time.start))
     for (m in 1:iter) {
       L <- max(1, round(Lambda / eps))
+      if(display>=2) cat("Number of Leaps :", L , "\n")
       theta.out[m,] <- current.q
       Er[m] <- if (m == 1)
         fn(current.q)
@@ -430,6 +431,7 @@ BLNN_Train <-
       q.new <- current.q
       current.K = sum(M_inv * p.cur ^ 2) / 2
       current.H = fn(current.q) + current.K
+
       if (useDA & m > warmup)
         eps = eps * runif(1, 0.8, 1.1)
       ## Make a half step for first iteration
@@ -451,7 +453,7 @@ BLNN_Train <-
       proposed.U = fn(q.new)
       proposed.K = sum(M_inv * p.new ^ 2) / 2
       proposed.H = proposed.U + proposed.K
-
+      if(display == 3) cat("Iteration :",m, "---", "(O.Eng, N.Eng)", " (",current.H,proposed.H,")", "\n")
       acceptProb = (current.H - proposed.H)
       ## Numerical divergence is registered as a NaN above. In this case we
       ## want to reject the proposal, mark the divergence, and adjust the
@@ -466,7 +468,7 @@ BLNN_Train <-
         #print("ACCEPT")
         current.q <- q.new
         accepted[m] <- TRUE
-        if (display == 3)
+        if (display >=1)
           cat("New Error:" , fn(current.q), "\n")
       } else {
         ## otherwise reject it and stay there
@@ -488,7 +490,7 @@ BLNN_Train <-
             m ^ (-kappa) * logeps + (1 - m ^ (-kappa)) * log(epsbar[m])
           epsbar[m + 1] <- exp(logepsbar)
           eps <- epsvec[m + 1]
-          cat("\n", "new eps", eps, "\n")
+          if(display >=2) cat("\n", "step size during adapt :", eps, "\n")
         } else {
           eps <- epsbar[warmup]
         }
