@@ -33,3 +33,4 @@ As with other Bayesian methods, propper diagnostics are required to determine if
 install.packages("shinystan")
 ```
 
+In an attempt to display how our BLNN methods can be used to investigate a variety of questions, we provide a series of three vignettes demonstrating linear, survival and classification modeling. 
