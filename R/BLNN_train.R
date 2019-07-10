@@ -26,7 +26,7 @@
 #' \itemize{
 #' \item{adapt_delta: }{ The target acceptance rate. Default is \code{0.8}, for HMC preferred is \code{0.65}.}
 #' \item{momentum.mass: }{ A vector of the momentum variance, default is \code{1}.}
-#' \item{stepsize: }{ The stepsize to be used for NUTS algorithm. If \code{NULL} it will be adapted during warmup.}
+#' \item{stepsize: }{ The stepsize to be used if no adapt is used. If \code{NULL} it will be adapted during warmup. If UseDA is true then the stepsize is the initial step used in Pick Epsilon.}
 #' \item{useDA: }{ Whether dual averaging for adapting stepsize is used or not. Default is \code{TRUE}.}
 #' \item{gamma: }{ One of DA arguments, double, positive, defaults to \code{2}.}
 #' \item{t0: }{ One of DA arguments, double, positive, defaults to \code{10}.}
@@ -45,9 +45,12 @@
 #' }
 #'
 #' @param display Help track the sampler algorithm by displaying several results. Value \code{0} display nothing, \code{1} display the
-#' neural network error after each iteration. \code{2} will display the stepsize and number of leapfrog steps during and after warmup for each iteration.
-#' \code{3} In addition to error function,stepsize, and leapfrog steps it will display the old and new energy for each iteration.
+#' neural network error after each iteration. \code{2} (HMC only) will display the stepsize and number of leapfrog steps during and after warmup for each iteration.
+#' \code{3} (HMC only) In addition to error function,stepsize, and leapfrog steps it will display the old and new energy for each iteration.
 #'
+#'
+#' @return In case of BFGS algorithm the return is the trained BLNN object. In case of NUTS or HMC the
+#' returned is a list containing the posterior samples and other algorithm details such as stepsize, acceptance probabilities, effective sample size, Rhat, among others.
 #' @references
 #' \itemize{ \item{Neal, R. M. (2011). MCMC using Hamiltonian
 #'   dynamics. Handbook of Markov Chain Monte Carlo.}  \item{Hoffman and
@@ -108,6 +111,7 @@ BLNN_Train <-
       NET$scale.weights <-
         list(ev.out[[1]][1:(ngroup - 3)], ev.out[[1]][ngroup - 2], ev.out[[1]][ngroup -
                                                                                  1], ev.out[[1]][ngroup])
+
     }
     # end of evidence procedure.
 
@@ -217,24 +221,38 @@ BLNN_Train <-
 
         #Parallel excution
     }}else {
-        cat("inside parallel if")
-        if (!requireNamespace("snowfall", quietly = TRUE))
-          stop("snowfall package not found")
-        stopifnot(is.character(path))
-        if (file.exists('mcmc_progress.txt'))
-          trash <- file.remove('mcmc_progress.txt')
-        snowfall::sfInit(parallel = TRUE,
-                         cpus = cores,
-                         slaveOutfile = 'mcmc_progress.txt')
-        ## snowfall::sfLibrary("TMB")
-        snowfall::sfExportAll()
-        on.exit(snowfall::sfStop())
-        message("Starting parallel chains... ")
-        ##mcmc.out <- lapply(1:chains, function(i)
-        mcmc.out <- snowfall::sfLapply(1:chains, function(i)
-          .sample_NN.parallel(
-            parallel_number = i,
-            path = path,
+      if (!requireNamespace("future.apply", quietly = TRUE))
+        stop("future.apply package not found")
+      if (file.exists('mcmc_progress.txt'))
+        trash <- file.remove('mcmc_progress.txt')
+      tempDir <- tempfile()
+      dir.create(tempDir)
+      htmlFile <- file.path(tempDir, "mcmc_progress.txt")
+      viewer <- getOption("viewer")
+      viewer(htmlFile)
+
+      future::plan(future::multiprocess, workers=cores)
+
+      message("Starting parallel chains... ")
+      ##mcmc.out <- lapply(1:chains, function(i)
+      if(algorithm == "HMC")
+      {
+      mcmc.out <- future.apply::future_lapply(1:chains, function(i)
+        #replace this by our fuction
+        .sample_NN_hmc(
+          iter = iter,
+          fn = U,
+          gr = grad.U,
+          init = init[[i]],
+          warmup = warmup,
+          chain = i,
+          thin = thin,
+          seed = seeds[i],
+          control = control, display, parallel, file=htmlFile,
+        ))
+      } else if (algorithm == "NUTS") {
+        mcmc.out <- future.apply::future_lapply(1:chains, function(i)
+          .sample_NN_nuts(
             iter = iter,
             fn = U,
             gr = grad.U,
@@ -243,10 +261,12 @@ BLNN_Train <-
             chain = i,
             thin = thin,
             seed = seeds[i],
-            control = control, display,...
-
+            control = control, display, parallel, file=htmlFile,
           ))
-        message("... Finished parallel chains")
+      }
+      message("... Finished parallel chains")
+
+
       }
 
     warmup <- mcmc.out[[1]]$warmup
@@ -302,7 +322,8 @@ BLNN_Train <-
       warmup = warmup,
       covar.est = covar.est,
       Rhat = Rhat,
-      ess = ess
+      ess = ess,
+      hp.list=list(hp.W=NET$scale.weights, hp.E=NET$scale.error)
     )
     if (algorithm == "NUTS"){
       result$max_treedepth <- mcmc.out[[1]]$max_treedepth
@@ -333,7 +354,7 @@ BLNN_Train <-
            chain = i,
            thin = thin,
            seed = seeds[i],
-           control = control, display=0, path = getwd(),...) {
+           control = control, display=0, path = getwd(), parallel = FALSE, f1=NULL,...) {
     #Initialize arguments
     #
 
@@ -503,7 +524,7 @@ BLNN_Train <-
       if (m == warmup)
         time.warmup <-
         difftime(Sys.time(), time.start, units = 'secs')
-      .print.mcmc.progress(m, iter, warmup, chain)
+      .print.mcmc.progress(m, iter, warmup, chain, parallel, f1)
       ## end of MCMC loop
     }
     ## Back transform parameters if metric is used
@@ -562,7 +583,7 @@ BLNN_Train <-
            chain = 1,
            thin = 1,
            seed = NULL,
-           control = NULL, display=0, path=getwd(),
+           control = NULL, display=0, path=getwd(),parallel=FALSE, f1=NULL,
            ...) {
     ## Now contains all required NUTS arguments
 
@@ -658,7 +679,8 @@ BLNN_Train <-
 
     eps <- epsvec[1] <- epsbar[1] <-
       .find.epsilon(theta = init, fn2, gr2, eps, verbose = FALSE, M_inv)
-    cat("pick epsilon", eps , "\n")
+    if(display>= 0) cat("Initial Step size :", eps , "\n")
+
     mu <- log(15.05 * eps)
     Hbar[1] <- 0
     gamma <- gamma
@@ -754,8 +776,9 @@ BLNN_Train <-
                     min = 0,
                     max = 1) <= res$n / n) {
             theta.cur <- res$theta.prime
-            if (display == 3) {
-              cat("New Error", fn2(theta.cur), "\n")
+            if (display >= 1) {
+              cat("New Error: ", fn2(theta.cur), "\n")
+
             }
             Er[m] <- fn2(theta.cur)
             ## save accepted parameters
@@ -895,7 +918,7 @@ BLNN_Train <-
       if (m == warmup)
         time.warmup <-
         difftime(Sys.time(), time.start, units = 'secs')
-      .print.mcmc.progress(m, iter, warmup, chain)
+      .print.mcmc.progress(m, iter, warmup, chain, parallel, f1)
     } ## end of MCMC loop
 
     ## Process the output for returning
@@ -1250,7 +1273,7 @@ BLNN_Train <-
     return(invisible(eps))
   }
 
-.print.mcmc.progress <- function (iteration, iter, warmup, chain)
+.print.mcmc.progress <- function (iteration, iter, warmup, chain, parallel= FALSE, f1=NULL)
 {
   i <- iteration
   refresh <- max(10, floor(iter / 10))
@@ -1266,9 +1289,14 @@ BLNN_Train <-
       " [",
       formatC(floor(100 * (i / iter)), width = 3),
       "%]",
-      ifelse(i <= warmup, " (Warmup)", " (Sampling)")
+      ifelse(i <= warmup, " (Warmup)", " (Sampling)"), "\n"
     )
+    if(!parallel){
     message(out)
+    } else
+          {
+      cat(out, file = f1, append = TRUE)
+          }
   }
 }
 

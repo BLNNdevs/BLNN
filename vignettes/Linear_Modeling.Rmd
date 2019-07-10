@@ -41,23 +41,103 @@ targ<-data.matrix(mtcars$mpg)
 targ<-scale(targ)
 ```
 
-Our next step requires us to train our network. We will be using the popular nnet package to act as our baseline and using our four Bayesian methods to explore their use. 
+Our next step requires us to train our network. We will be using the popular nnet package to act as our baseline and using our four Bayesian methods to explore their use. Due to the differences between each of our sampling methods it may be necessary to make changes to one or multiple elements inside the control list of each training call.    
 
 ```{r}
 nnetBasesline<-nnet(data, targ, size=3)
+nnetPredictions<-predict(nnetBasesline)
 ```
 
 ```{r}
 LinearHMC <- BLNN_Train(NET = LinearNet,
                           x = data,
                           y = targ,
-                          iter = 50,
+                          iter = 10000,
                           chains = 1,
                           algorithm = "HMC",
-                          display = 1, control = list(adapt_delta = 0.7,
-                                                      Lambda = 0.05,
-                                                      stepsize=.5,
-                                                      gamma=5)
+                          display = 0, control = list(adapt_delta = 0.65,
+                                                      Lambda = 0.005,
+                                                      stepsize=2,
+                                                      gamma=3)
                         )
+```
+
+```{r}
+LinearNUTS <- BLNN_Train(NET = LinearNet,
+                          x = data,
+                          y = targ,
+                          iter = 10000,
+                          chains = 1,
+                          algorithm = "NUTS",
+                          display = 0, control = list(adapt_delta = 0.7,
+                                                      lambda=.005,
+                                                      stepsize=2,
+                                                      gamma=5,
+                                                      max_treedepth=20)
+                                                      
+                        )
+```
+
+```{r, message=FALSE}
+LinearHMCwithEVE <- BLNN_Train(NET = LinearNet,
+                          x = data,
+                          y = targ,
+                          iter = 10000,
+                          chains = 1,
+                          algorithm = "HMC",
+                          evidence = TRUE,
+                          display = 0, control = list(adapt_delta = 0.65,
+                                                      Lambda = 0.005,
+                                                      stepsize=2,
+                                                      gamma=12)
+                        )
+```
+
+```{r}
+LinearNUTSwithEVE <- BLNN_Train(NET = LinearNet,
+                          x = data,
+                          y = targ,
+                          iter = 10000,
+                          chains = 1,
+                          algorithm = "NUTS",
+                          evidence = TRUE,
+                          display = 0, control = list(adapt_delta = 0.7,
+                                                      stepsize=2,
+                                                      gamma=7,
+                                                      max_treedepth=20)
+                                                      
+                        )
+```
+
+After we confirm that our samples had an appropriate acceptance ratio and have, in the very least, low values for Rhat (less than one) and larger values for effective sample size (minimum 50 each) we can update each of our networks with the newly sampled parameters. 
+
+```{r}
+LinearHMC<-BLNN_Update(LinearNet, LinearHMC)
+LinearNUTS<-BLNN_Update(LinearNet, LinearNUTS)
+LinearHMCwithEVE<-BLNN_Update(LinearNet, LinearHMCwithEVE)
+LinearNUTSwithEVE<-BLNN_Update(LinearNet, LinearNUTSwithEVE)
+```
+
+Once we have updated our networks with the appropriate weights, and in the case of evidence procedure the updated hyper parameters, we can gather our predictions and examine the overall error.
+
+```{r}
+HMCpred<-BLNN_Predict(LinearHMC, data, targ)
+NUTSpred<-BLNN_Predict(LinearNUTS, data, targ)
+HMCpredEVE<-BLNN_Predict(LinearHMCwithEVE, data, targ)
+NUTSpredEVE<-BLNN_Predict(LinearNUTSwithEVE, data, targ)
+```
+
+With the predictions for each method we can organize the network errors and sum of the absolute difference in predicted values.
+
+```{r}
+errs<-c(HMCpred$Errors$Total,NUTSpred$Errors$Total, HMCpredEVE$Errors$Total, NUTSpredEVE$Errors$Total, nnetBasesline$value)
+
+abdiff<-c(sum(abs(HMCpred$Difference)), sum(abs(NUTSpred$Difference)), sum(abs(HMCpredEVE$Difference)), sum(abs(NUTSpredEVE$Difference)), sum(abs(targ-nnetPredictions)))
+
+OutTab<-data.frame(errs, abdiff)
+
+rownames(OutTab)<-c("HMC", "NUTS", "EVEHMC", "EVENUTS", "NNET")
+
+View(OutTab)
 ```
 

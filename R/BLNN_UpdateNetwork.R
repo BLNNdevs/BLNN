@@ -1,11 +1,12 @@
-#' @title Calculate predicted values and errors for a BLNN object
+#' @title Update a BLNN object with sampled weights and hyper-parameters
 #' @name BLNN_Update
 #' @description Allows the user to update the network object after examining the samples.
 #' If the samples drawn passed the diagnostic checks then we need to update the network object with the average value of the accetped samples after warmup.
+#' If evidence was used in training the hyper-parameters will be updated as well.
 #' @param Network A BLNN network object
 #' @param fit The fitted object returned by \code{\link{BLNN_train}}.
 #' @param index The starting index used to compute the average estimated value of the newtork weights. The default is warmup+1
-#' @return The Network object with trained weights.
+#' @return The Network object with trained weights and updated hyper-parameters.
 #'
 #' @export
 
@@ -22,6 +23,8 @@ BLNN_Update <- function(NET, fit, index=NULL){
   }
 
   Net.up <- .UpNetWts(wts.up,NET)
+  Net.up$scale.weights<-fit$hp.list$hp.W
+  Net.up$scale.error<-fit$hp.list$hp.E
   return(Net.up)
 
 }

@@ -16,4 +16,136 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 library(BLNN)
+library(nnet)
+set.seed(2048)
+```
+
+As an example of survival analysis we will be using the worcester 100 survival data which is provided within BLNN. We will be using a small number of variables for ease of this example as well as a minimal number of hidden units. 
+
+Our first aim be to generate our BLNN object. Before that however we need to identify how we will be conducting this example. Our vital status variable fstat will be our response and our network will predict risk of death conditional on survival time. Our covariates of interest will be age, sex, and BMI. 
+
+For our hyperparameter values we initialize them with psudeo random values in that they are arbitrarily selected. These will be re-estimated through the evidence procedure later in training. In most cases it is recomended to scale your data as to avoid network weights that are incredibly large where possible. For this example we will elect not to scale the data
+
+```{r}
+#The continuous variables (including survival time) will be scaled. maybe
+SrvDat<-data.frame(scale(worcester_100$lenfol), scale(worcester_100$age), worcester_100$gender, scale(worcester_100$bmi))
+SrvTarg<-worcester_100$fstat
+colnames(SrvDat)<-c("srvtime", "Age", "Gender", "BMI")
+```
+
+```{r}
+SrvNet<-BLNN_Build(ncov=4, nout=1, hlayer_size = 3,
+                      actF = "tanh", costF = "crossEntropy", outF = "sigmoid",
+                      hp.Err = 10, hp.W1 = .5, hp.W2 = .5,
+                      hp.B1 = .5, hp.B2 = .5)
+```
+
+Our next step requires us to train our network. We will be using the popular nnet package to act as our baseline and using our four Bayesian methods to explore their use. Due to the differences between each of our sampling methods it may be necessary to make changes to one or multiple elements inside the control list of each training call. We will be generating two MCMC chains for each method in order to try and best understand our parameter space while moving from different starting positions. It is usually recommended to use at least two chains.
+
+Since each chain requires different initial parameter values when working on the same seed, we provide BLNN train with a function for how to generate each initial weight. For this example we will be using random normal weights from a standard normal distribution.
+
+```{r}
+n.par <- length(BLNN_GetWts(SrvNet))
+chains <- 2
+initials<- lapply(1:chains, function(i) rnorm(n.par))
+```
+
+
+```{r}
+nnetBasesline<-nnet(SrvDat, SrvTarg, size=3)
+nnetPredictions<-predict(nnetBasesline)
+```
+
+```{r}
+SrvHMC <- BLNN_Train(NET = SrvNet,
+                          x = SrvDat,
+                          y = SrvTarg,
+                          init = initials,
+                          iter = 10000,
+                          chains = 2,
+                          algorithm = "HMC",
+                          display = 0, control = list(adapt_delta = 0.65,
+                                                      Lambda = 0.009,
+                                                      stepsize=5,
+                                                      gamma=1, t0=100)
+                        )
+```
+
+```{r}
+SrvNUTS <- BLNN_Train(NET = SrvNet,
+                          x = SrvDat,
+                          y = SrvTarg,
+                          init=initials,
+                          iter = 10000,
+                          chains = 2,
+                          algorithm = "NUTS",
+                          display = 0, control = list(adapt_delta = 0.99,
+                                                      stepsize=1,
+                                                      gamma=2, t0=10, max_treedepth=20)
+                                                      
+                        )
+```
+
+```{r, message=FALSE}
+SrvHMCwithEVE <- BLNN_Train(NET = SrvNet,
+                          x = SrvDat,
+                          y = SrvTarg,
+                          init=initials,
+                          iter = 10000,
+                          chains = 2,
+                          algorithm = "HMC",
+                          evidence = TRUE,
+                          display = 0, control = list(adapt_delta = 0.65,
+                                                      Lambda = 0.009,
+                                                      stepsize=5,
+                                                      gamma=1, t0=100)
+                        )
+```
+
+```{r}
+SrvNUTSwithEVE <- BLNN_Train(NET = SrvNet,
+                          x = SrvDat,
+                          y = SrvTarg,
+                          init=initials,
+                          iter = 10000,
+                          chains = 2,
+                          algorithm = "NUTS",
+                          evidence = TRUE,
+                          display = 0, control = list(adapt_delta = 0.8,
+                                                      stepsize=5,
+                                                      gamma=.05, t0=100, max_treedepth=20)
+                                                      
+                        )
+```
+
+After we confirm that our samples had an appropriate acceptance ratio and have, in the very least, low values for Rhat (less than one) and larger values for effective sample size (minimum 50 each) we can update each of our networks with the newly sampled parameters. 
+
+```{r}
+SrvHMC<-BLNN_Update(SrvNet, SrvHMC)
+SrvNUTS<-BLNN_Update(SrvNet, SrvNUTS)
+SrvHMCwithEVE<-BLNN_Update(SrvNet, SrvHMCwithEVE)
+SrvNUTSwithEVE<-BLNN_Update(SrvNet, SrvNUTSwithEVE)
+```
+
+Once we have updated our networks with the appropriate weights, and in the case of evidence procedure the updated hyper parameters, we can gather our predictions and examine the overall error.
+
+```{r}
+HMCpred<-BLNN_Predict(SrvHMC, SrvDat, SrvTarg)
+NUTSpred<-BLNN_Predict(SrvNUTS, SrvDat, SrvTarg)
+HMCpredEVE<-BLNN_Predict(SrvHMCwithEVE, SrvDat, SrvTarg)
+NUTSpredEVE<-BLNN_Predict(SrvNUTSwithEVE, SrvDat, SrvTarg)
+```
+
+With the predictions for each method we can organize the network errors and sum of the absolute difference in predicted values.
+
+```{r}
+errs<-c(HMCpred$Errors$Total,NUTSpred$Errors$Total, HMCpredEVE$Errors$Total, NUTSpredEVE$Errors$Total, nnetBasesline$value)
+
+abdiff<-c(sum(abs(HMCpred$Difference)), sum(abs(NUTSpred$Difference)), sum(abs(HMCpredEVE$Difference)), sum(abs(NUTSpredEVE$Difference)), sum(abs(targ-nnetPredictions)))
+
+OutTab<-data.frame(errs, abdiff)
+
+rownames(OutTab)<-c("HMC", "NUTS", "EVEHMC", "EVENUTS", "NNET")
+
+View(OutTab)
 ```

@@ -15,7 +15,7 @@
 
 BLNN_Predict<-function(Network, x, y=NULL){
 
-  forwarded<-ffwd(Network, x)
+  forwarded<-.ffwd(Network, x)
 
 
   if (Network$outF=="softmax"){
