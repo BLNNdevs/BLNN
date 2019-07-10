@@ -374,7 +374,7 @@
 
   if(NET[["hidden_size"]]>0){
     #if we are not using bayesian
-    if(NET[["scale.weights"]][[1]]==FALSE){
+    if(NET[["scale.weights"]][[1]][1]==FALSE){
       gprior<-0
     }
 
@@ -424,7 +424,7 @@
 
   }else{
 
-    if(NET[["scale.weights"]][[1]]==FALSE){
+    if(NET[["scale.weights"]][[1]][1]==FALSE){
       gprior<-0
     }
 
