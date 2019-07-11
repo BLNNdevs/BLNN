@@ -976,4 +976,4 @@
                           control = control, display, path = newdir,...)
   unlink(newdir, TRUE)
   return(fit)
-}
+} #
