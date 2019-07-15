@@ -117,7 +117,7 @@ BLNN_Train <-
 
 
 
-    warmup <- floor(iter / 2)
+    warmup <- warmup
     n.params <- length(.VecNetWts(NET))
     par.names <- as.character(c(1:n.params))
 
@@ -443,35 +443,40 @@ BLNN_Train <-
     for (m in 1:iter) {
       L <- max(1, round(Lambda / eps))
       if(display>=2) cat("Number of Leaps :", L , "\n")
-      theta.out[m,] <- current.q
-      Er[m] <- if (m == 1)
-        fn(current.q)
-      else
-        Er[m - 1]
+      #theta.out[m,] <- current.q
+
+      #Er[m] <- if (m == 1)
+       # fn2(current.q)
+
+
+
       p.cur <- p.new <- rnorm(length(current.q), 0, sqrt(M))
       q.new <- current.q
+      current.g <- new.g <- gr2(current.q)
       current.K = sum(M_inv * p.cur ^ 2) / 2
-      current.H = fn(current.q) + current.K
+      current.H = fn2(current.q) + current.K
 
       if (useDA & m > warmup)
         eps = eps * runif(1, 0.8, 1.1)
       ## Make a half step for first iteration
-      p.new <- p.new + eps * gr(q.new) / 2
+      p.new <- p.new + eps * current.g/ 2
+
       for (i in 1:L) {
         #theta.leapfrog[i,] <- current.q
         #r.leapfrog[i,] <- r.new
-        p.new <- p.new + eps * gr(q.new) / 2
+        p.new <- p.new + eps * current.g / 2
         q.new <- q.new + eps * p.new
-        p.new <- p.new + eps * gr(q.new) / 2
+        new.g <- gr2(q.new)
+        p.new <- p.new + eps * new.g / 2
 
         ## If divergence, stop trajectory earlier to save computation
         if (any(!is.finite(p.new)) | any(!is.finite(q.new)))
           break
       }
       ## half step for momentum at the end
-      p.new <- p.new + eps * gr(q.new) / 2
+      p.new <- p.new + eps * new.g / 2
 
-      proposed.U = fn(q.new)
+      proposed.U = fn2(q.new)
       proposed.K = sum(M_inv * p.new ^ 2) / 2
       proposed.H = proposed.U + proposed.K
       if(display == 3) cat("Iteration :",m, "---", "(O.Eng, N.Eng)", " (",current.H,proposed.H,")", "\n")
@@ -490,7 +495,7 @@ BLNN_Train <-
         current.q <- q.new
         accepted[m] <- TRUE
         if (display >=1)
-          cat("New Error:" , fn(current.q), "\n")
+          cat("New Error:" , fn2(current.q), "\n")
       } else {
         ## otherwise reject it and stay there
         accepted[m] <- FALSE
@@ -498,7 +503,7 @@ BLNN_Train <-
       }
 
       theta.out[m,] <- current.q
-      Er[m] <- fn(current.q)
+      Er[m] <- fn2(current.q)
       if (useDA) {
         ## Do the adapting of eps.
         if (m <= warmup) {
@@ -520,7 +525,7 @@ BLNN_Train <-
 
       ## Save adaptation info.
       sampler_params[m,] <-
-        c(min(1, exp(acceptProb)), eps, eps * L, fn(current.q))
+        c(min(1, exp(acceptProb)), eps, eps * L, fn2(current.q))
       if (m == warmup)
         time.warmup <-
         difftime(Sys.time(), time.start, units = 'secs')

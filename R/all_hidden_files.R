@@ -79,7 +79,7 @@
 
     BRS<-.ErrBayes(NET, Err, sep=TRUE)
 
-    return(list(Total=Err+BRS, Bayes=BRS, Data=Err))
+    return(list(Total=Err+(BRS[[1]]), Bayes=BRS[[1]], Data=Err, eveprior=BRS[[2]]))
 
   }
 
@@ -514,6 +514,9 @@
       #Take the sum of all weight errors with respect to the bayesian
       eprior <- sum(c(sum(w1t), sum(w2t)))
 
+      #Set up for evidence
+      eveprior<-c(rowSums(w1t), rowSums(w2t))
+
       #Otherwise if the first layer has different distributions for each covariate
     } else{
       #Extract each set of weights and quadratic error
@@ -530,10 +533,19 @@
 
       #Take the sum of all weight errors with respect to the bayesian
       eprior <- sum(c(sum(w1t), sum(w2t)))
+
+      #Set up for evidence
+      eveprior<-c(rowSums(w1t), rowSums(w2t))
     }
 
-    #Finally output the bayesian error term
-    return(eprior + edata)
+    if(sep==TRUE){
+
+      return(list(EP=eprior, EVEP=eveprior))
+    }
+    else{#Finally output the bayesian error term
+
+      return(edata + eprior)
+    }
 
     #In the case we don't have a hidden layer
   } else{
@@ -554,6 +566,9 @@
       #Take the sum of all weight errors with respect to the bayesian
       eprior <- sum(c(sum(w1t)))
 
+      #Set up for evidence
+      eveprior<-c(rowSums(w1t))
+
       #Otherwise if the first layer has different distributions for each covariate
     } else{
       #Extract each set of weights and quadratic error
@@ -565,11 +580,16 @@
 
       #Take the sum of all weight errors with respect to the bayesian
       eprior <- sum(c(sum(w1t)))
+
+      #Set up for evidence
+      eveprior<-c(rowSums(w1t))
     }
     if(sep==TRUE){
-      return(eprior)
+
+      return(list(EP=eprior, EVEP=eveprior))
     }
     else{#Finally output the bayesian error term
+
       return(edata + eprior)
     }
 
@@ -606,7 +626,8 @@
   allerr<-.NetErr(act,network, data, sep=TRUE)
 
   edata<-allerr[[3]]
-  eprior<-allerr[[2]]
+  #Vector of length ncov+1+nhidden+1
+  eprior<-allerr[[4]]
 
 
   #Make Room
@@ -644,6 +665,19 @@
 
   #reconstruct the hessian using the new corrected eigen values
   dh<-evec%*%evl%*%t(evec)
+
+  #prepare eprior based on the number of groups
+  if(length(network$scale.weights[[1]])==1){
+    eprior<-c(sum(eprior[1:network$ncov]),
+              eprior[network$ncov+1],
+              sum(eprior[(network$ncov+2):(network$ncov+2+network$hidden_size)]),
+              eprior[length(eprior)])
+  } else{
+    eprior<-c(eprior[1:network$ncov],
+              eprior[network$ncov+1],
+              sum(eprior[(network$ncov+2):(network$ncov+2+network$hidden_size)]),
+              eprior[length(eprior)])
+  }
 
   #Initialize the counter
   counter<-0
@@ -701,10 +735,7 @@
     local_beta<-betaval
 
     #Update the network structure for the next while itteration
-
     network$scale.error<-betaval
-
-
 
     #Ideally this is how the alphas are structured but may be an issue
     network$scale.weights<-list(allalpha[1:(ngroup-3)], allalpha[ngroup-2], allalpha[ngroup-1], allalpha[ngroup])
