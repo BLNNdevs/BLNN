@@ -53,154 +53,6 @@
   }
 }
 
-
-
-
-#####################################################################################################################
-# Function to build the network object
-#####################################################################################################################
-.BLNN_Build<-function(ncov,
-                     nout,
-                     hlayer_size= 0,
-                     actF = c("linear", "sigmoid", "tanh", "softmax"),
-                     costF=c("MSE","crossEntropy"),
-                     outF = c("linear", "sigmoid", "softmax"),
-                     bias=c(1,1),
-                     hp.Err=FALSE,
-                     hp.W1=FALSE,
-                     hp.W2=FALSE,
-                     hp.B1=FALSE,
-                     hp.B2=FALSE,
-                     decay_term=1){
-
-
-
-  nn<-NULL #start with an entirely blank object
-
-  #check that a integer number is provided for number of covariates
-  if((length(ncov)>1L & is.null(ncol(ncov))==FALSE & is.null(nrow(ncov))==FALSE) | is.numeric(ncov) == FALSE) stop("Number of covariates must be an integer number")
-
-
-  nn$ncov<-as.integer(ncov) #set the number of covs to be an integer type instead of the default double type.
-
-  #check that a integer value is provided
-  if((length(nout)>1L & is.null(ncol(nout))==FALSE & is.null(nrow(nout))==FALSE) | is.numeric(nout) == FALSE) stop("Number of output variables must be a number")
-
-  nn$nout<-as.integer(nout) #set the number of outputs to be an integer type.
-
-  #Check that the layer size is appropriate
-  if(length(hlayer_size)>1 & is.numeric(hlayer_size) == TRUE) stop("Hidden layer size must be integer number")
-
-  nn$hidden_size<-hlayer_size #set the size argument to be the layer sizes, either a single value
-
-
-  #check the activation function (FOR HIDDEN LAYERS UNITS ONLY) (TAKE a AND OUTPUT z)
-  if(match(actF,c("linear", "sigmoid", "tanh", "softmax"), nomatch = FALSE)==FALSE) stop("Unavailable activation function")
-
-  nn$actF<-actF
-
-  #check the output function (TAKE z AND OUTPUT y)
-  if(match(outF,c("linear", "sigmoid", "softmax"), nomatch = FALSE)==FALSE) stop("Unavailable output function")
-
-  nn$outF<-outF
-
-
-  #check the error function (FOR NOW MEAN SQUARE ERROR and CROSS ENTROPY, others to be added)
-  if(match(costF,c("MSE","crossEntropy"), nomatch = FALSE)==FALSE) stop("Unavailable cost function") #check if an available cost function is supplied
-
-  if(costF == "MSE") nn$costF <- "MSE"
-
-  if(costF=="crossEntropy") nn$costF<- "crossEntropy"
-
-  #Check that the bias terms are numeric values
-  if(length(bias)!=2 & is.numeric(bias)==FALSE) stop("Bias terms must be a vector of length two with numeric entries")
-  #Save the bias
-  nn$bias<-bias
-
-  #Check that the hyper parameter values are non negative or not null
-  if(any(c(hp.Err,hp.W1, hp.B1, hp.W2, hp.B2)<=0) & any(c(hp.Err,hp.W1, hp.B1, hp.W2, hp.B2)!=FALSE) &
-     is.numeric(c(hp.Err,hp.W1, hp.B1, hp.W2, hp.B2))==TRUE) stop("Hyperparameter values must be non negative real numbers and all specified if any are used")
-
-  #Check that the hyperparameters are of the right lenght
-  if(length(c(hp.Err, hp.B1, hp.W2, hp.B2))!=4) stop("All hyperparameter values other than HP.W1 must be scalars")
-  if(length(hp.W1)!=ncov & length(hp.W1)!=1) stop("Hyperparameters for the first layer must be length one or number of covariates")
-
-  #Place the error scale into the network. Will place NULL by default
-  nn$scale.error<-hp.Err
-
-  #Fill a list with the elements of the scale weights
-  nn$scale.weights<-list(hp.W1, hp.B1, hp.W2, hp.B2)
-
-
-
-  #go to set up weights
-  nn$weights<-list() #blank for bayesian methods to compute in the training methods
-
-  #if we are not using a hidden layer
-  if (hlayer_size==0){
-
-    #set weights if there is no hidden layer
-    swts<-rnorm(((ncov+1)*nout), mean=0, sd=1/decay_term )/sqrt(ncov+1)
-
-    #make the single weight matrix
-    nn$weights<-matrix(swts, nrow = ncov+1, ncol=nout)
-  } else {
-
-    for(lrs in 1:(length(hlayer_size)+1)){ #loop over the number of hidden layers to build a wt matrix for each layer
-
-      #Check that the matrix multiplication can be done by checking the row numbers
-      if(lrs!=1 & lrs!=(length(hlayer_size)+1)){
-
-        #set weights to be a vector of the number of connections that need to me made with decay term
-        swts<-rnorm( ((hlayer_size[lrs-1]+1)*hlayer_size[lrs]), mean=0, sd=1/decay_term )
-
-
-        #Take the vector of the random weights and fill the matrix for that given layer. Col's are for connections
-        nn$weights[[lrs]]<-matrix(swts, nrow = hlayer_size[lrs-1]+1, ncol=hlayer_size[lrs])
-      }
-
-      else if(lrs==1){
-
-        #set weights to be a vector of the number of connections that need to me made with decay term
-        swts<-rnorm( ((ncov+1)*hlayer_size[lrs]), mean=0, sd=1/decay_term ) /sqrt(ncov+1)
-
-        #if it is the first matrix of weights the rows should be the covariates plus bias row
-        nn$weights[[lrs]]<-matrix(swts, nrow = ncov+1, ncol=hlayer_size[lrs])
-      }
-      else {
-        swts<-rnorm( ((hlayer_size[lrs-1]+1)*nout), mean=0, sd=1/decay_term )/sqrt(hlayer_size+1)
-
-        #if it is the first matrix of weights the rows should be number of hidden nodes plus bias
-        nn$weights[[lrs]]<-matrix(swts, nrow = hlayer_size[lrs-1]+1, ncol=nout)
-
-      }
-
-    }
-
-
-  }
-
-
-  #set the blank list for pre activated matrices
-  nn$Amat<-list()
-
-  #set the blank list of activated a's
-  nn$postAmat<-list()
-
-  #set the blank list of training outputs
-  nn$Zmat<-list()
-
-  #set the blank list of training outputs
-  nn$trainout<-list()
-
-
-  nn #output the network object
-}
-
-
-
-
-
 #####################################################################################################################
 # Function to compute the network error
 #####################################################################################################################
@@ -227,7 +79,7 @@
 
     BRS<-.ErrBayes(NET, Err, sep=TRUE)
 
-    return(list(Total=Err+BRS, Bayes=BRS, Data=Err))
+    return(list(Total=Err+(BRS[[1]]), Bayes=BRS[[1]], Data=Err, eveprior=BRS[[2]]))
 
   }
 
@@ -522,7 +374,7 @@
 
   if(NET[["hidden_size"]]>0){
     #if we are not using bayesian
-    if(NET[["scale.weights"]][[1]]==FALSE){
+    if(NET[["scale.weights"]][[1]][1]==FALSE){
       gprior<-0
     }
 
@@ -572,7 +424,7 @@
 
   }else{
 
-    if(NET[["scale.weights"]][[1]]==FALSE){
+    if(NET[["scale.weights"]][[1]][1]==FALSE){
       gprior<-0
     }
 
@@ -641,7 +493,7 @@
 
   if (NET[["hidden_size"]] > 0) {
     #If we are not using bayesian, have the prior error be zero
-    if (NET[["scale.weights"]][[1]] == FALSE) {
+    if (NET[["scale.weights"]][[1]][1] == FALSE) {
       eprior <- 0
 
       #If all covariates have the same distribution of weights
@@ -662,6 +514,9 @@
       #Take the sum of all weight errors with respect to the bayesian
       eprior <- sum(c(sum(w1t), sum(w2t)))
 
+      #Set up for evidence
+      eveprior<-c(rowSums(w1t), rowSums(w2t))
+
       #Otherwise if the first layer has different distributions for each covariate
     } else{
       #Extract each set of weights and quadratic error
@@ -678,15 +533,24 @@
 
       #Take the sum of all weight errors with respect to the bayesian
       eprior <- sum(c(sum(w1t), sum(w2t)))
+
+      #Set up for evidence
+      eveprior<-c(rowSums(w1t), rowSums(w2t))
     }
 
-    #Finally output the bayesian error term
-    return(eprior + edata)
+    if(sep==TRUE){
+
+      return(list(EP=eprior, EVEP=eveprior))
+    }
+    else{#Finally output the bayesian error term
+
+      return(edata + eprior)
+    }
 
     #In the case we don't have a hidden layer
   } else{
     #If we are not using bayesian, have the prior error be zero
-    if (NET[["scale.weights"]][[1]] == FALSE) {
+    if (NET[["scale.weights"]][[1]][1] == FALSE) {
       eprior <- 0
 
       #If all covariates have the same distribution of weights
@@ -702,6 +566,9 @@
       #Take the sum of all weight errors with respect to the bayesian
       eprior <- sum(c(sum(w1t)))
 
+      #Set up for evidence
+      eveprior<-c(rowSums(w1t))
+
       #Otherwise if the first layer has different distributions for each covariate
     } else{
       #Extract each set of weights and quadratic error
@@ -713,11 +580,16 @@
 
       #Take the sum of all weight errors with respect to the bayesian
       eprior <- sum(c(sum(w1t)))
+
+      #Set up for evidence
+      eveprior<-c(rowSums(w1t))
     }
     if(sep==TRUE){
-      return(eprior)
+
+      return(list(EP=eprior, EVEP=eveprior))
     }
     else{#Finally output the bayesian error term
+
       return(edata + eprior)
     }
 
@@ -754,7 +626,8 @@
   allerr<-.NetErr(act,network, data, sep=TRUE)
 
   edata<-allerr[[3]]
-  eprior<-allerr[[2]]
+  #Vector of length ncov+1+nhidden+1
+  eprior<-allerr[[4]]
 
 
   #Make Room
@@ -793,6 +666,19 @@
   #reconstruct the hessian using the new corrected eigen values
   dh<-evec%*%evl%*%t(evec)
 
+  #prepare eprior based on the number of groups
+  if(length(network$scale.weights[[1]])==1){
+    eprior<-c(sum(eprior[1:network$ncov]),
+              eprior[network$ncov+1],
+              sum(eprior[(network$ncov+2):(network$ncov+2+network$hidden_size)]),
+              eprior[length(eprior)])
+  } else{
+    eprior<-c(eprior[1:network$ncov],
+              eprior[network$ncov+1],
+              sum(eprior[(network$ncov+2):(network$ncov+2+network$hidden_size)]),
+              eprior[length(eprior)])
+  }
+
   #Initialize the counter
   counter<-0
 
@@ -802,23 +688,28 @@
     #Calculate the inverse of the hessian
     hinv<-solve(dhess)
 
+
     #Count the number of weights in each group
-    n_in_groups<-c(ifelse(length(network$scale.weights[[1]])>1,
-                          (rep(network$ncov, length(network$scale.weights[[1]]))),
-                          network$ncov*network$hidden_size),
-                   network$hidden_size,
-                   network$hidden_size,
-                   network$nout)
+    if(length(network$scale.weights[[1]])>1){
+      n_in_groups<-c((rep(network$hidden_size, network$ncov)),
+                     network$hidden_size,
+                     network$hidden_size,
+                     network$nout)
+    } else {
+      n_in_groups<-c(network$ncov*network$hidden_size,
+                     network$hidden_size,
+                     network$hidden_size,
+                     network$nout)
+    }
+
 
     #Create the vector of all the alpha values
-    allalpha<-c(ifelse(length(network$scale.weights[[1]])==1,
-                       (rep(network$scale.weights[[1]], (nrow(network[["weights"]][[1]]) - 1))),
-                       network$ncov*network$hidden_size),
+    allalpha<-c(network$scale.weights[[1]],
                 network$scale.weights[[2]],
                 network$scale.weights[[3]],
                 network$scale.weights[[4]])
 
-
+    if(length(n_in_groups)!=length(allalpha)) message(print("length of first layer hyperparameters does not match number of covariates or is not length 1"))
 
     #Diag hess sum elements asociated with each group
     HessDiagGroupSum<-vector()
@@ -828,6 +719,7 @@
       HessDiagGroupSum<-sum(diag(hinv)[breaker:breaker+n_in_groups[g]-1])
       breaker<-n_in_groups[g]+breaker
     }
+
     gams<-n_in_groups-allalpha*HessDiagGroupSum
 
     allalpha<-Re(gams/(2*eprior))
@@ -843,10 +735,7 @@
     local_beta<-betaval
 
     #Update the network structure for the next while itteration
-
     network$scale.error<-betaval
-
-
 
     #Ideally this is how the alphas are structured but may be an issue
     network$scale.weights<-list(allalpha[1:(ngroup-3)], allalpha[ngroup-2], allalpha[ngroup-1], allalpha[ngroup])
@@ -858,7 +747,7 @@
 
 
   #Return the entire network error
-  n1 <<- network
+
   error<-.NetErr(act, network, data)
 
 
@@ -1118,4 +1007,4 @@
                           control = control, display, path = newdir,...)
   unlink(newdir, TRUE)
   return(fit)
-}
+} #

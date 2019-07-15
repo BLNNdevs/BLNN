@@ -15,7 +15,7 @@
 
 BLNN_Predict<-function(Network, x, y=NULL){
 
-  forwarded<-ffwd(Network, x)
+  forwarded<-.ffwd(Network, x)
 
 
   if (Network$outF=="softmax"){
@@ -25,6 +25,6 @@ BLNN_Predict<-function(Network, x, y=NULL){
   } else{
     Err<-.NetErr(y, Network, x, sep = TRUE)
     diff<-(y-forwarded$trainout)
-    return(list(Errors=Err, Difference=diff, Fitted_Values=forwarded$trainout))
+    return(list(Errors=Err, Difference=diff, Predicted_Values=forwarded$trainout))
   }
 }}
