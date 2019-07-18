@@ -81,7 +81,8 @@ SrvNUTS <- BLNN_Train(NET = SrvNet,
                           algorithm = "NUTS",
                           display = 0, control = list(adapt_delta = 0.99,
                                                       stepsize=1,
-                                                      gamma=2, t0=10, max_treedepth=20)
+                                                      gamma=2, t0=10,
+                                                      max_treedepth=20)
                                                       
                         )
 ```
@@ -113,7 +114,8 @@ SrvNUTSwithEVE <- BLNN_Train(NET = SrvNet,
                           evidence = TRUE,
                           display = 0, control = list(adapt_delta = 0.8,
                                                       stepsize=5,
-                                                      gamma=.05, t0=100, max_treedepth=20)
+                                                      gamma=.05, t0=100,
+                                                      max_treedepth=20)
                                                       
                         )
 ```

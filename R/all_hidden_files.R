@@ -685,23 +685,18 @@
 
   while(counter<itter){
 
-    #Calculate the inverse of the hessian
-    hinv<-solve(dhess)
-
-
     #Count the number of weights in each group
     if(length(network$scale.weights[[1]])>1){
       n_in_groups<-c((rep(network$hidden_size, network$ncov)),
                      network$hidden_size,
-                     network$hidden_size,
+                     network$hidden_size*network$nout,
                      network$nout)
     } else {
       n_in_groups<-c(network$ncov*network$hidden_size,
                      network$hidden_size,
-                     network$hidden_size,
+                     network$hidden_size*network$nout,
                      network$nout)
     }
-
 
     #Create the vector of all the alpha values
     allalpha<-c(network$scale.weights[[1]],
@@ -711,12 +706,26 @@
 
     if(length(n_in_groups)!=length(allalpha)) message(print("length of first layer hyperparameters does not match number of covariates or is not length 1"))
 
+    #Calculate/recalculate the hessian based on most updated hypers
+    #creating the vector for the diag matrix of hess
+    diagAlpha<-list()
+    for (q in 1:length(n_in_groups)) {
+      diagAlpha[[q]]<-rep(allalpha[q],n_in_groups[q])
+    }
+    diagAlpha<-unlist(diagAlpha)
+
+    #Calculate the inverse of the hessian
+    hinv<-solve(dh*network$scale.error+
+                  diag(diagAlpha,
+                       nrow = nrow(dh),
+                       ncol=ncol(dh)))
+
     #Diag hess sum elements asociated with each group
     HessDiagGroupSum<-vector()
     breaker<-1
     #Calculate the sum of the diag hess elements for each group
     for (g in 1:length(n_in_groups)) {
-      HessDiagGroupSum<-sum(diag(hinv)[breaker:breaker+n_in_groups[g]-1])
+      HessDiagGroupSum[g]<-sum(diag(hinv)[breaker:breaker+n_in_groups[g]-1]) #this is a VECTOR
       breaker<-n_in_groups[g]+breaker
     }
 
@@ -1008,3 +1017,21 @@
   unlink(newdir, TRUE)
   return(fit)
 } #
+
+
+.as.shinyBLNN <-function(fit){
+  if (fit$algorithm == "NUTS") {
+    sso <- with(fit, shinystan::as.shinystan(samples, warmup = warmup,
+                                             max_treedepth = max_treedepth, sampler_params = sampler_params,
+                                             algorithm = "NUTS", model_name = "BLNN"))
+  }
+  else if (fit$algorithm == "HMC") {
+    sso <- with(fit, shinystan::as.shinystan(samples, warmup = warmup,
+                                             sampler_params = sampler_params,
+                                             algorithm = "HMC",
+                                             model_name = "BLNN"))
+  }
+
+  return(invisible(sso))
+
+}

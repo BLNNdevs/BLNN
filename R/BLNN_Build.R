@@ -7,13 +7,13 @@
 #' @param actF The choice of activation function. See 'Details'.
 #' @param costF The choice of cost function. See 'Details'.
 #' @param outF The choice of output function. See 'Details'.
-#' @param bias The choice for the bias term of each layer. Defaults is 1 for each layer.
+#' @param bias The choice for the bias term of each layer. Default is 1 for each layer.
 #' @param hp.Err Value of the scale hyperparameter for the network errors. Defaults to FALSE for no bayesian.
 #' @param hp.W1 Value of the scale hyperparameter for the first layer weights. Defaults to FALSE for no bayesian.
 #' @param hp.B1 Value of the scale hyperparameter for the first layer bias. Defaults to FALSE for no bayesian.
 #' @param hp.W2 Value of the scale hyperparameter for the second layer weights. Defaults to FALSE for no bayesian.
 #' @param hp.B2 Value of the scale hyperparameter for the second layer bias. Defaults to FALSE for no bayesian.
-#' @param decay_term Control term for the initial valus of the weights. Standard deciation of initial weights is 1/decay_term. Default is 1.
+#' @param decay_term Control term for the initial valus of the weights. Standard deviation of initial weights is 1/decay_term. Default is 1.
 #'
 #' @details BLNN_Build provides users with different activation, cost, and output finctions
 #' which can be chosen based on the model type. Activation functions are applied at the hidden
@@ -74,7 +74,7 @@ BLNN_Build<-function(ncov,
 
   nn<-NULL #start with an entirely blank object
 
-  #check that a integer number is provided for number of covariates
+  #check that an integer number is provided for number of covariates
   if((length(ncov)>1L & is.null(ncol(ncov))==FALSE & is.null(nrow(ncov))==FALSE) | is.numeric(ncov) == FALSE) stop("Number of covariates must be an integer number")
 
 
@@ -88,7 +88,7 @@ BLNN_Build<-function(ncov,
   #Check that the layer size is appropriate
   if(length(hlayer_size)>1 & is.numeric(hlayer_size) == TRUE) stop("Hidden layer size must be integer number")
 
-  nn$hidden_size<-hlayer_size #set the size argument to be the layer sizes, either a single value
+  nn$hidden_size<-hlayer_size #set the size argument to be the layer sizes, a single value
 
 
   #check the activation function (FOR HIDDEN LAYERS UNITS ONLY) (TAKE a AND OUTPUT z)
@@ -118,7 +118,7 @@ BLNN_Build<-function(ncov,
   if(any(c(hp.Err,hp.W1, hp.B1, hp.W2, hp.B2)<=0) & any(c(hp.Err,hp.W1, hp.B1, hp.W2, hp.B2)!=FALSE) &
      is.numeric(c(hp.Err,hp.W1, hp.B1, hp.W2, hp.B2))==TRUE) stop("Hyperparameter values must be non negative real numbers and all specified if any are used")
 
-  #Check that the hyperparameters are of the right lenght
+  #Check that the hyperparameters are of the right length
   if(length(c(hp.Err, hp.B1, hp.W2, hp.B2))!=4) stop("All hyperparameter values other than HP.W1 must be scalars")
   if(length(hp.W1)!=ncov & length(hp.W1)!=1) stop("Hyperparameters for the first layer must be length one or number of covariates")
 
@@ -151,7 +151,7 @@ BLNN_Build<-function(ncov,
          #Check that the matrix multiplication can be done by checking the row numbers
          if(lrs!=1 & lrs!=(length(hlayer_size)+1)){
 
-         #set weights to be a vector of the number of connections that need to me made with decay term
+         #set weights to be a vector of the number of connections that need to be made with decay term
          swts<-rnorm( ((hlayer_size[lrs-1]+1)*hlayer_size[lrs]), mean=0, sd=1/decay_term )
 
 
@@ -161,7 +161,7 @@ BLNN_Build<-function(ncov,
 
            else if(lrs==1){
 
-           #set weights to be a vector of the number of connections that need to me made with decay term
+           #set weights to be a vector of the number of connections that need to be made with decay term
            swts<-rnorm( ((ncov+1)*hlayer_size[lrs]), mean=0, sd=1/decay_term ) /sqrt(ncov+1)
 
            #if it is the first matrix of weights the rows should be the covariates plus bias row
@@ -187,7 +187,7 @@ BLNN_Build<-function(ncov,
   #set the blank list of activated a's
   nn$postAmat<-list()
 
-  #set the blank list of training outputs
+  #set the blank list of Z values
   nn$Zmat<-list()
 
   #set the blank list of training outputs

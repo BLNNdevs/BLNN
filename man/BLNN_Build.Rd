@@ -23,7 +23,7 @@ BLNN_Build(ncov, nout, hlayer_size = 1, actF = c("linear", "sigmoid",
 
 \item{outF}{The choice of output function. See 'Details'.}
 
-\item{bias}{The choice for the bias term of each layer. Defaults is 1 for each layer.}
+\item{bias}{The choice for the bias term of each layer. Default is 1 for each layer.}
 
 \item{hp.Err}{Value of the scale hyperparameter for the network errors. Defaults to FALSE for no bayesian.}
 
@@ -35,7 +35,7 @@ BLNN_Build(ncov, nout, hlayer_size = 1, actF = c("linear", "sigmoid",
 
 \item{hp.B2}{Value of the scale hyperparameter for the second layer bias. Defaults to FALSE for no bayesian.}
 
-\item{decay_term}{Control term for the initial valus of the weights. Standard deciation of initial weights is 1/decay_term. Default is 1.}
+\item{decay_term}{Control term for the initial valus of the weights. Standard deviation of initial weights is 1/decay_term. Default is 1.}
 }
 \value{
 The network object, defined as a list containing

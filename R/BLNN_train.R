@@ -459,22 +459,23 @@ BLNN_Train <-
       if (useDA & m > warmup)
         eps = eps * runif(1, 0.8, 1.1)
       ## Make a half step for first iteration
-      p.new <- p.new + eps * current.g/ 2
-
-      for (i in 1:L) {
+      p.new <- p.new - eps * current.g/ 2
+      q.new <- q.new + eps * p.new
+      new.g <- gr2(q.new)
+      for (i in 1:(L-1)) {
         #theta.leapfrog[i,] <- current.q
         #r.leapfrog[i,] <- r.new
-        p.new <- p.new + eps * current.g / 2
+        p.new <- p.new - eps * new.g / 2
         q.new <- q.new + eps * p.new
         new.g <- gr2(q.new)
-        p.new <- p.new + eps * new.g / 2
+        #p.new <- p.new + eps * new.g / 2
 
         ## If divergence, stop trajectory earlier to save computation
         if (any(!is.finite(p.new)) | any(!is.finite(q.new)))
           break
       }
       ## half step for momentum at the end
-      p.new <- p.new + eps * new.g / 2
+      p.new <- p.new - eps * new.g / 2
 
       proposed.U = fn2(q.new)
       proposed.K = sum(M_inv * p.new ^ 2) / 2
@@ -503,7 +504,7 @@ BLNN_Train <-
       }
 
       theta.out[m,] <- current.q
-      Er[m] <- fn2(current.q)
+      Er[m] <- -log(fn2(current.q))
       if (useDA) {
         ## Do the adapting of eps.
         if (m <= warmup) {
@@ -686,7 +687,7 @@ BLNN_Train <-
       .find.epsilon(theta = init, fn2, gr2, eps, verbose = FALSE, M_inv)
     if(display>= 0) cat("Initial Step size :", eps , "\n")
 
-    mu <- log(15.05 * eps)
+    mu <- log(4.005 * eps)
     Hbar[1] <- 0
     gamma <- gamma
     t0 <- t0
@@ -1066,9 +1067,9 @@ BLNN_Train <-
     # if(!exists('theta.trajectory'))
     # theta.trajectory <<- data.frame(step=0, t(theta))
     ## base case, take one step in direction v
-    r <- r + (v * eps / 2) * gr(theta)
+    r <- r - (v * eps / 2) * gr(theta)
     theta <- theta + (v * eps) * r
-    r <- r + (v * eps / 2) * gr(theta)
+    r <- r - (v * eps / 2) * gr(theta)
     ## verify valid trajectory. Divergences occur if H is NaN, or drifts
     ## too from from true H.
     #cat("\n Inside buildtree")
@@ -1081,7 +1082,7 @@ BLNN_Train <-
       s <- 0
     }
     ## Acceptance ratio in log space: (Hnew-Hold)
-    logalpha <- H0 - H
+    logalpha <- H - H0
     alpha <- min(exp(logalpha), 1)
     info$n.calls <- info$n.calls + 1
     ## theta.trajectory <<-
@@ -1229,7 +1230,7 @@ BLNN_Train <-
                sd = sqrt(1/M_inv))
     .calculate.H1 <-
       function(theta, r, fn, M_inv) {
-        fn(theta) - (1 / 2) * sum(M_inv * r ^ 2)
+        fn(theta) -(1 / 2) * sum(M_inv * r ^ 2)
       }
 
     ## Do one leapfrog step
