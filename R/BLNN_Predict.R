@@ -13,18 +13,50 @@
 #' }
 #' @export
 
-BLNN_Predict<-function(Network, x, y=NULL){
+BLNN_Predict <- function(Network, x, y = NULL, fit = NULL) {
+  if (is.null(fit)== TRUE) {
+    forwarded <- .ffwd(Network, x)
 
-  forwarded<-.ffwd(Network, x)
 
-
-  if (Network$outF=="softmax"){
-    return(max.col(forwarded$trainout))
-  } else{ if(is.null(y)==TRUE){
-    return(forwarded$trainout)
+    if (Network$outF == "softmax") {
+      return(max.col(forwarded$trainout))
+    } else{
+      if (is.null(y) == TRUE) {
+        return(forwarded$trainout)
+      } else{
+        Err <- .NetErr(y, Network, x, sep = TRUE)
+        diff <- (y - forwarded$trainout)
+        return(list(
+          Errors = Err,
+          Difference = diff,
+          Predicted_Values = forwarded$trainout
+        ))
+      }
+    }
   } else{
-    Err<-.NetErr(y, Network, x, sep = TRUE)
-    diff<-(y-forwarded$trainout)
-    return(list(Errors=Err, Difference=diff, Predicted_Values=forwarded$trainout))
+        fil.net <- function(w){
+          nettemp <- BLNN:::.UpNetWts(w,Network)
+          out <- BLNN_Predict(nettemp,x)
+          return(out)
+        }
+        ### Collecting all accepted samples from fit object
+        d1 <-NULL
+        chains <-length(fit$sampler_params)
+        for(k in 1:chains){
+          m <- fit$samples[,k,]
+          m1 <-as.data.frame(cbind(m,acc = fit$sampler_params[[k]][,5]))
+          if(chains == 1){
+            d1 <- m1 %>% dplyr::filter(acc == 1) %>% dplyr::select(-Er__,-acc)
+          }else{
+            d1 <- rbind(d1,m1 %>% dplyr::filter(acc == 1) %>% dplyr::select(-Er__,-acc))
+          }
+        }
+        pred <- apply(d1,1,fil.net)
+        if (Network$outF == "softmax"){
+          return(apply(pred,1,function(x){as.numeric(names(table(x))[table(x)==max(table(x))])}))
+        }else{
+          return(colMeans(t(pred)))
+        }
+
   }
-}}
+}

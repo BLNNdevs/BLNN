@@ -105,7 +105,7 @@ BLNN_Train <-
         ev.y = Actual
 
       }
-      ev.out <- .evidence(NET, ev.y, ev.x, itter = 10)
+      ev.out <- .evidence(NET, ev.y, ev.x, itter = 50)
       ngroup <- ev.out[[4]]
       NET$scale.error <- ev.out[[2]]
       NET$scale.weights <-
@@ -160,7 +160,7 @@ BLNN_Train <-
 
     if (is.null(seeds)) {
       seeds <- as.integer(runif(chains, 1, 100000))
-    } else if (length(seeds != chains))
+    } else if (length(seeds) != chains)
       stop("Length of seeds does not equal number of chains.")
 
     algorithm <-
@@ -229,7 +229,7 @@ BLNN_Train <-
       dir.create(tempDir)
       htmlFile <- file.path(tempDir, "mcmc_progress.txt")
       viewer <- getOption("viewer")
-      viewer(htmlFile)
+      #viewer(htmlFile)
 
       future::plan(future::multiprocess, workers=cores)
 
@@ -415,12 +415,12 @@ BLNN_Train <-
       matrix(
         numeric(0),
         nrow = iter,
-        ncol = 4,
+        ncol = 5,
         # holds DA info by iteration
         dimnames = list(
           NULL,
           c("accept_stat__",
-            "stepsize__", "int_time__", "energy__")
+            "stepsize__", "int_time__", "energy__", "accepted__")
         )
       )
 
@@ -526,7 +526,7 @@ BLNN_Train <-
 
       ## Save adaptation info.
       sampler_params[m,] <-
-        c(min(1, exp(acceptProb)), eps, eps * L, fn2(current.q))
+        c(min(1, exp(acceptProb)), eps, eps * L, fn2(current.q), accepted[m])
       if (m == warmup)
         time.warmup <-
         difftime(Sys.time(), time.start, units = 'secs')
@@ -570,6 +570,7 @@ BLNN_Train <-
         time.total = time.total,
         time.warmup = time.warmup,
         warmup = warmup / thin
+
       )
 
     )
@@ -995,7 +996,7 @@ BLNN_Train <-
 }
 
 
-.update_control <- function (control, ...)
+.update_control <- function(control, ...)
 {
   default <-
     list(
@@ -1008,7 +1009,7 @@ BLNN_Train <-
       t0 = 10,
       kappa = 0.75,
       metric = NULL,
-      adapt_mass = TRUE,
+      adapt_mass = FALSE,
       w1 = 75,
       w2 = 50,
       w3 = 25,
