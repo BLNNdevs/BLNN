@@ -105,7 +105,7 @@ BLNN_Train <-
         ev.y = Actual
 
       }
-      ev.out <- .evidence(NET, ev.y, ev.x, itter = 10)
+      ev.out <- .evidence(NET, ev.y, ev.x, itter = 50)
       ngroup <- ev.out[[4]]
       NET$scale.error <- ev.out[[2]]
       NET$scale.weights <-
@@ -160,7 +160,7 @@ BLNN_Train <-
 
     if (is.null(seeds)) {
       seeds <- as.integer(runif(chains, 1, 100000))
-    } else if (length(seeds != chains))
+    } else if (length(seeds) != chains)
       stop("Length of seeds does not equal number of chains.")
 
     algorithm <-
@@ -229,7 +229,7 @@ BLNN_Train <-
       dir.create(tempDir)
       htmlFile <- file.path(tempDir, "mcmc_progress.txt")
       viewer <- getOption("viewer")
-      viewer(htmlFile)
+      #viewer(htmlFile)
 
       future::plan(future::multiprocess, workers=cores)
 
@@ -415,12 +415,12 @@ BLNN_Train <-
       matrix(
         numeric(0),
         nrow = iter,
-        ncol = 4,
+        ncol = 5,
         # holds DA info by iteration
         dimnames = list(
           NULL,
           c("accept_stat__",
-            "stepsize__", "int_time__", "energy__")
+            "stepsize__", "int_time__", "energy__", "accepted__")
         )
       )
 
@@ -459,22 +459,23 @@ BLNN_Train <-
       if (useDA & m > warmup)
         eps = eps * runif(1, 0.8, 1.1)
       ## Make a half step for first iteration
-      p.new <- p.new + eps * current.g/ 2
-
-      for (i in 1:L) {
+      p.new <- p.new - eps * current.g/ 2
+      q.new <- q.new + eps * p.new
+      new.g <- gr2(q.new)
+      for (i in 1:(L-1)) {
         #theta.leapfrog[i,] <- current.q
         #r.leapfrog[i,] <- r.new
-        p.new <- p.new + eps * current.g / 2
+        p.new <- p.new - eps * new.g / 2
         q.new <- q.new + eps * p.new
         new.g <- gr2(q.new)
-        p.new <- p.new + eps * new.g / 2
+        #p.new <- p.new + eps * new.g / 2
 
         ## If divergence, stop trajectory earlier to save computation
         if (any(!is.finite(p.new)) | any(!is.finite(q.new)))
           break
       }
       ## half step for momentum at the end
-      p.new <- p.new + eps * new.g / 2
+      p.new <- p.new - eps * new.g / 2
 
       proposed.U = fn2(q.new)
       proposed.K = sum(M_inv * p.new ^ 2) / 2
@@ -503,7 +504,7 @@ BLNN_Train <-
       }
 
       theta.out[m,] <- current.q
-      Er[m] <- fn2(current.q)
+      Er[m] <- -log(fn2(current.q))
       if (useDA) {
         ## Do the adapting of eps.
         if (m <= warmup) {
@@ -525,7 +526,7 @@ BLNN_Train <-
 
       ## Save adaptation info.
       sampler_params[m,] <-
-        c(min(1, exp(acceptProb)), eps, eps * L, fn2(current.q))
+        c(min(1, exp(acceptProb)), eps, eps * L, fn2(current.q), accepted[m])
       if (m == warmup)
         time.warmup <-
         difftime(Sys.time(), time.start, units = 'secs')
@@ -569,6 +570,7 @@ BLNN_Train <-
         time.total = time.total,
         time.warmup = time.warmup,
         warmup = warmup / thin
+
       )
 
     )
@@ -655,7 +657,7 @@ BLNN_Train <-
       matrix(
         numeric(0),
         nrow = iter,
-        ncol = 6,
+        ncol = 7,
         dimnames = list(
           NULL,
           c(
@@ -664,7 +666,8 @@ BLNN_Train <-
             "treedepth__",
             "n_leapfrog__",
             "divergent__",
-            "energy__"
+            "energy__",
+            "accepted__"
           )
         )
       )
@@ -675,6 +678,7 @@ BLNN_Train <-
 
     ## how many steps were taken at each iteration, useful for tuning
     j.results <- Er <- rep(NA, len = iter)
+    accepted <- rep(0, len = iter)
     #cat("\n","I am in line 205 in Sample NN nutts")
 
     #useDA <- is.null(eps)     # whether to use DA algorithm
@@ -686,7 +690,7 @@ BLNN_Train <-
       .find.epsilon(theta = init, fn2, gr2, eps, verbose = FALSE, M_inv)
     if(display>= 0) cat("Initial Step size :", eps , "\n")
 
-    mu <- log(15.05 * eps)
+    mu <- log(4.005 * eps)
     Hbar[1] <- 0
     gamma <- gamma
     t0 <- t0
@@ -786,6 +790,7 @@ BLNN_Train <-
 
             }
             Er[m] <- fn2(theta.cur)
+            accepted[m] <- 1
             ## save accepted parameters
             theta.out[m,] <-
               if (is.vector(M1))
@@ -919,7 +924,7 @@ BLNN_Train <-
           j,
           info$n.calls,
           info$divergent,
-          fn2(theta.cur))
+          fn2(theta.cur),accepted[m])
       if (m == warmup)
         time.warmup <-
         difftime(Sys.time(), time.start, units = 'secs')
@@ -936,7 +941,7 @@ BLNN_Train <-
     if (ndiv > 0)
       message(paste0("There were ", ndiv, " divergent transitions after warmup"))
     msg <-
-      paste0("Final acceptance ratio=", sprintf("%.2f", mean(sampler_params[-(1:warm), 1])))
+      paste0("Final acceptance ratio=", sprintf("%.2f", mean(sampler_params[-(1:warm), 7])))
     if (useDA)
       msg <- paste0(msg, ", and target=", adapt_delta)
     message(msg)
@@ -994,7 +999,7 @@ BLNN_Train <-
 }
 
 
-.update_control <- function (control, ...)
+.update_control <- function(control, ...)
 {
   default <-
     list(
@@ -1007,7 +1012,7 @@ BLNN_Train <-
       t0 = 10,
       kappa = 0.75,
       metric = NULL,
-      adapt_mass = TRUE,
+      adapt_mass = FALSE,
       w1 = 75,
       w2 = 50,
       w3 = 25,
@@ -1066,9 +1071,9 @@ BLNN_Train <-
     # if(!exists('theta.trajectory'))
     # theta.trajectory <<- data.frame(step=0, t(theta))
     ## base case, take one step in direction v
-    r <- r + (v * eps / 2) * gr(theta)
+    r <- r - (v * eps / 2) * gr(theta)
     theta <- theta + (v * eps) * r
-    r <- r + (v * eps / 2) * gr(theta)
+    r <- r - (v * eps / 2) * gr(theta)
     ## verify valid trajectory. Divergences occur if H is NaN, or drifts
     ## too from from true H.
     #cat("\n Inside buildtree")
@@ -1081,7 +1086,7 @@ BLNN_Train <-
       s <- 0
     }
     ## Acceptance ratio in log space: (Hnew-Hold)
-    logalpha <- H0 - H
+    logalpha <- H - H0
     alpha <- min(exp(logalpha), 1)
     info$n.calls <- info$n.calls + 1
     ## theta.trajectory <<-
@@ -1229,7 +1234,7 @@ BLNN_Train <-
                sd = sqrt(1/M_inv))
     .calculate.H1 <-
       function(theta, r, fn, M_inv) {
-        fn(theta) - (1 / 2) * sum(M_inv * r ^ 2)
+        fn(theta) -(1 / 2) * sum(M_inv * r ^ 2)
       }
 
     ## Do one leapfrog step

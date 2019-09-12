@@ -16,4 +16,183 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 library(BLNN)
+library(nnet) #be sure to install if you wish to run the entire RMD
+set.seed(2048)
+```
+
+As an example of classification modeling, we will use the iris dataset from the datasets package. Our goal will be to classify the species of iris based on sepal length/width, as well as petal length/width. 
+
+Our first aim is to build our BLNN object. To limit the network size we will use only three hidden units in the hidden layer. Since we wish to classify into one of three species our BLNN object requires three outputs.
+
+For our hyperparameter values we initialize them with psudeo random values in that they are arbitrarily selected. These will be re-estimated through the evidence procedure later in training.
+
+```{r}
+ClassNet<-BLNN_Build(ncov=4, nout=3, hlayer_size = 3,
+                      actF = "tanh",
+                      costF = "crossEntropy",
+                      outF = "softmax",
+                      hp.Err = 10, hp.W1 = .5, hp.W2 = .5,
+                      hp.B1 = .5, hp.B2 = .5)
+```
+
+Next we look to organize our data into our covariates and our target values. In most cases it is recomended to scale your data as to avoid network weights that are incredibly large where possible. To use the softmax function we must dummy code our responses, as the iris data holds the responses in one column.
+
+```{r}
+targ<-matrix(0, nrow=nrow(iris), ncol=3)
+lev<-as.factor(iris$Species)
+for(i in 1:150){
+  targ[i, lev[i]]<-1
+}
+
+names(targ)<-c("Set", "Ver", "Vir")
+
+data<-cbind(iris$Sepal.Length,
+            iris$Sepal.Width,
+            iris$Petal.Length,
+            iris$Petal.Width)
+
+data<-scale(data)
+```
+
+Our next step requires us to train our network. We will be using the popular nnet package to act as our baseline and using our four Bayesian methods to explore their use. Due to the differences between each of our sampling methods it may be necessary to make changes to one or multiple elements inside the control list of each training call.   
+
+```{r}
+nnetBasesline<-nnet(data, targ, size=3)
+nnetPredictions<-predict(nnetBasesline)
+```
+
+```{r}
+ClassHMC <- BLNN_Train(NET = ClassNet,
+                          x = data,
+                          y = targ,
+                          iter = 10000,
+                          chains = 1,
+                          algorithm = "HMC",
+                          display = 0, control = list(adapt_delta = 0.8,
+                                                      Lambda = 0.005,
+                                                      stepsize=5,
+                                                      gamma=2)
+                        )
+```
+
+```{r}
+ClassNUTS <- BLNN_Train(NET = ClassNet,
+                          x = data,
+                          y = targ,
+                          iter = 10000,
+                          chains = 1,
+                          algorithm = "NUTS",
+                          display = 0, control = list(adapt_delta = 0.7,
+                                                      lambda=.005,
+                                                      stepsize=2,
+                                                      gamma=5,
+                                                      max_treedepth=15)
+                                                      
+                        )
+```
+
+```{r, message=FALSE}
+ClassHMCwithEVE <- BLNN_Train(NET = ClassNet,
+                          x = data,
+                          y = targ,
+                          iter = 10000,
+                          chains = 1,
+                          algorithm = "HMC",
+                          evidence = TRUE,
+                          display = 0, control = list(adapt_delta = 0.65,
+                                                      Lambda = 0.005,
+                                                      stepsize=2,
+                                                      gamma=12)
+                        )
+```
+
+```{r}
+ClassNUTSwithEVE <- BLNN_Train(NET = ClassNet,
+                          x = data,
+                          y = targ,
+                          iter = 10000,
+                          chains = 1,
+                          algorithm = "NUTS",
+                          evidence = TRUE,
+                          display = 0, control = list(adapt_delta = 0.99,
+                                                      stepsize=2,
+                                                      gamma=7,
+                                                      max_treedepth=15)
+                                                      
+                        )
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+After we confirm that our samples had an appropriate acceptance ratio and have, in the very least, low values for Rhat (less than one) and larger values for effective sample size (minimum 50 each) we can update each of our networks with the newly sampled parameters. 
+
+```{r}
+ClassHMC<-BLNN_Update(ClassNet, ClassHMC)
+ClassNUTS<-BLNN_Update(ClassNet, ClassNUTS)
+ClassHMCwithEVE<-BLNN_Update(ClassNet, ClassHMCwithEVE)
+ClassNUTSwithEVE<-BLNN_Update(ClassNet, ClassNUTSwithEVE)
+```
+
+Once we have updated our networks with the appropriate weights, and in the case of evidence procedure the updated hyper parameters, we can gather our predictions and examine the overall error.
+
+```{r}
+HMCpred<-BLNN_Predict(ClassNet, data)
+NUTSpred<-BLNN_Predict(ClassNet, data)
+HMCpredEVE<-BLNN_Predict(ClassNet, data)
+NUTSpredEVE<-BLNN_Predict(ClassNet, data)
+#################3
+HMCpredClass<-matrix(0, nrow=nrow(iris), ncol=3)
+lev<-as.factor(HMCpred)
+for(i in 1:150){
+  HMCpredClass[i, lev[i]]<-1
+}
+
+names(HMCpredClass)<-c("Set", "Ver", "Vir")
+#################
+NUTSpredClass<-matrix(0, nrow=nrow(iris), ncol=3)
+lev<-as.factor(NUTSpred)
+for(i in 1:150){
+  NUTSpredClass[i, lev[i]]<-1
+}
+
+names(NUTSCpredClass)<-c("Set", "Ver", "Vir")
+#################3
+HMCpredEVEClass<-matrix(0, nrow=nrow(iris), ncol=3)
+lev<-as.factor(HMCpredEVE)
+for(i in 1:150){
+  HMCpredEVEClass[i, lev[i]]<-1
+}
+
+names(HMCpredEVEClass)<-c("Set", "Ver", "Vir")
+#################
+NUTSpredEVEClass<-matrix(0, nrow=nrow(iris), ncol=3)
+lev<-as.factor(NUTSpredEVE)
+for(i in 1:150){
+  NUTSpredEVEClass[i, lev[i]]<-1
+}
+
+names(NUTSCpredEVEClass)<-c("Set", "Ver", "Vir")
+```
+
+With the predictions for each method we can organize and examine the contingency tables of each method to see their overall predictive accuracu.
+
+```{r}
+table(targ, HMCpredClass)
+
+table(targ, HMCpredEVEClass)
+
+table(targ, NUTSpredClass)
+
+table(targ, NUTSpredEVEClass)
 ```

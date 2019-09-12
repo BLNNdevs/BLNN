@@ -2,7 +2,7 @@
 % Please edit documentation in R/BLNN_UpdateNetwork.R
 \name{BLNN_Update}
 \alias{BLNN_Update}
-\title{Calculate predicted values and errors for a BLNN object}
+\title{Update a BLNN object with sampled weights and hyper-parameters}
 \usage{
 BLNN_Update(NET, fit, index = NULL)
 }
@@ -14,9 +14,10 @@ BLNN_Update(NET, fit, index = NULL)
 \item{Network}{A BLNN network object}
 }
 \value{
-The Network object with trained weights.
+The Network object with trained weights and updated hyper-parameters.
 }
 \description{
 Allows the user to update the network object after examining the samples.
 If the samples drawn passed the diagnostic checks then we need to update the network object with the average value of the accetped samples after warmup.
+If evidence was used in training the hyper-parameters will be updated as well.
 }

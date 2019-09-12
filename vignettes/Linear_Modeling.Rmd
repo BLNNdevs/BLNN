@@ -101,10 +101,11 @@ LinearNUTSwithEVE <- BLNN_Train(NET = LinearNet,
                           chains = 1,
                           algorithm = "NUTS",
                           evidence = TRUE,
-                          display = 0, control = list(adapt_delta = 0.7,
-                                                      stepsize=2,
+                          display = 0, control = list(adapt_delta = 0.99,
+                                                      stepsize=5,
                                                       gamma=7,
-                                                      max_treedepth=20)
+                                                      max_treedepth=20,
+                                                      adapt_mass=FALSE)
                                                       
                         )
 ```

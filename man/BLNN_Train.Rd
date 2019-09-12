@@ -48,7 +48,7 @@ See references below for detailed descriptions of each algorithm. The BFGS for q
 \itemize{
 \item{adapt_delta: }{ The target acceptance rate. Default is \code{0.8}, for HMC preferred is \code{0.65}.}
 \item{momentum.mass: }{ A vector of the momentum variance, default is \code{1}.}
-\item{stepsize: }{ The stepsize to be used for NUTS algorithm. If \code{NULL} it will be adapted during warmup.}
+\item{stepsize: }{ The stepsize to be used if no adapt is used. If \code{NULL} it will be adapted during warmup. If UseDA is true then the stepsize is the initial step used in Pick Epsilon.}
 \item{useDA: }{ Whether dual averaging for adapting stepsize is used or not. Default is \code{TRUE}.}
 \item{gamma: }{ One of DA arguments, double, positive, defaults to \code{2}.}
 \item{t0: }{ One of DA arguments, double, positive, defaults to \code{10}.}
@@ -67,8 +67,12 @@ For HMC algorithm we can also set:
 }}
 
 \item{display}{Help track the sampler algorithm by displaying several results. Value \code{0} display nothing, \code{1} display the
-neural network error after each iteration. \code{2} will display the stepsize and number of leapfrog steps during and after warmup for each iteration.
-\code{3} In addition to error function,stepsize, and leapfrog steps it will display the old and new energy for each iteration.}
+neural network error after each iteration. \code{2} (HMC only) will display the stepsize and number of leapfrog steps during and after warmup for each iteration.
+\code{3} (HMC only) In addition to error function,stepsize, and leapfrog steps it will display the old and new energy for each iteration.}
+}
+\value{
+In case of BFGS algorithm the return is the trained BLNN object. In case of NUTS or HMC the
+returned is a list containing the posterior samples and other algorithm details such as stepsize, acceptance probabilities, effective sample size, Rhat, among others.
 }
 \description{
 This function allow the user to train the BLNN object. The user can choose
