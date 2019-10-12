@@ -25,7 +25,7 @@
 #'
 #' @docType data
 #'
-#' @usage data(PBC_surv)
+#' @usage data(PBC_surv.RData)
 #'
 #' @format An object of class \code{"data.frame"}.
 #'
