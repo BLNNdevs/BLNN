@@ -12,11 +12,11 @@ To install the BLNN package from the GitHub repository, run the function
 ```R
 install_github("BLNNdevs/BLNN")
 ```
-This will pull all the necessary functions for performing your bayesian learning.
+This will pull all the necessary functions for performing your Bayesian learning.
 
 ### Vignettes
 
-The package repository contains helpful vignette files with full write-ups on example work done using BLNN. If you wish to install these vignettes into R along with the package they will need to be included explicitly durring instalation. To build your version of the package including vignettes be sure to include the build_vignettes argument
+The package repository contains helpful vignette files with full write-ups on example work done using BLNN. If you wish to install these vignettes into R along with the package they will need to be included explicitly during installation. To build your version of the package including vignettes be sure to include the build_vignettes argument
 
 ```R
 install_github("BLNNdevs/BLNN", build_vignettes = TRUE)

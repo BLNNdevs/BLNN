@@ -657,7 +657,7 @@ BLNN_Train <-
       matrix(
         numeric(0),
         nrow = iter,
-        ncol = 6,
+        ncol = 7,
         dimnames = list(
           NULL,
           c(
@@ -666,7 +666,8 @@ BLNN_Train <-
             "treedepth__",
             "n_leapfrog__",
             "divergent__",
-            "energy__"
+            "energy__",
+            "accepted__"
           )
         )
       )
@@ -677,6 +678,7 @@ BLNN_Train <-
 
     ## how many steps were taken at each iteration, useful for tuning
     j.results <- Er <- rep(NA, len = iter)
+    accepted <- rep(0, len = iter)
     #cat("\n","I am in line 205 in Sample NN nutts")
 
     #useDA <- is.null(eps)     # whether to use DA algorithm
@@ -788,6 +790,7 @@ BLNN_Train <-
 
             }
             Er[m] <- fn2(theta.cur)
+            accepted[m] <- 1
             ## save accepted parameters
             theta.out[m,] <-
               if (is.vector(M1))
@@ -921,7 +924,7 @@ BLNN_Train <-
           j,
           info$n.calls,
           info$divergent,
-          fn2(theta.cur))
+          fn2(theta.cur),accepted[m])
       if (m == warmup)
         time.warmup <-
         difftime(Sys.time(), time.start, units = 'secs')
@@ -938,7 +941,7 @@ BLNN_Train <-
     if (ndiv > 0)
       message(paste0("There were ", ndiv, " divergent transitions after warmup"))
     msg <-
-      paste0("Final acceptance ratio=", sprintf("%.2f", mean(sampler_params[-(1:warm), 1])))
+      paste0("Final acceptance ratio=", sprintf("%.2f", mean(sampler_params[-(1:warm), 7])))
     if (useDA)
       msg <- paste0(msg, ", and target=", adapt_delta)
     message(msg)
