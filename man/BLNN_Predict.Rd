@@ -4,7 +4,7 @@
 \alias{BLNN_Predict}
 \title{Calculate predicted values and errors for a BLNN object}
 \usage{
-BLNN_Predict(Network, x, y = NULL, fit = NULL)
+BLNN_Predict(Network, x, y = NULL)
 }
 \arguments{
 \item{Network}{A BLNN network object}

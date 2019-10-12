@@ -44,9 +44,7 @@ BLNN_Predict <- function(Network, x, y = NULL, fit = NULL) {
         chains <-length(fit$sampler_params)
         for(k in 1:chains){
           m <- fit$samples[,k,]
-          if(fit$algorithm=="HMC"){
           m1 <-as.data.frame(cbind(m,acc = fit$sampler_params[[k]][,5]))
-          }else{m1 <-as.data.frame(cbind(m,acc = fit$sampler_params[[k]][,7]))}
           if(chains == 1){
             d1 <- m1 %>% dplyr::filter(acc == 1) %>% dplyr::select(-Er__,-acc)
           }else{

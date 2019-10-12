@@ -4,7 +4,7 @@
 #'
 #' @docType data
 #'
-#' @usage data(GermanCredit)
+#' @usage data(GermanCredit.Rdata)
 #'
 #' @format An object of class \code{"data.frame"}
 #' @keywords datasets
